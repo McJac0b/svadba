@@ -41,12 +41,12 @@
   box.id = "lock";
   box.innerHTML = `
     <div class="lock-card" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
-      <svg class="lock-rings" viewBox="0 0 64 40" aria-hidden="true"><circle cx="24" cy="20" r="14" fill="none" stroke="#c27b6d" stroke-width="3"/><circle cx="40" cy="20" r="14" fill="none" stroke="#b38b50" stroke-width="3"/></svg>
+      <svg class="lock-rings" viewBox="0 0 64 40" aria-hidden="true"><circle cx="24" cy="20" r="14" fill="none" stroke="#2b7297" stroke-width="3"/><circle cx="40" cy="20" r="14" fill="none" stroke="#5aa5b8" stroke-width="3"/></svg>
       <h1 id="lockTitle">Svadobný plánovač</h1>
       <p class="lock-sub" id="lockMsg">Zadajte 8-miestny kód</p>
       <div class="dots" id="dots" aria-hidden="true">${"<i></i>".repeat(LEN)}</div>
       <input id="pinInput" class="pin-input" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="current-password" maxlength="${LEN}" aria-label="Kód">
-      <div class="pad">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button type="button" data-k="${n}">${n}</button>`).join("")}<span></span><button type="button" data-k="0">0</button><button type="button" data-k="del" aria-label="Zmazať číslicu">⌫</button></div>
+      <div class="keypad">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button type="button" data-k="${n}">${n}</button>`).join("")}<span></span><button type="button" data-k="0">0</button><button type="button" data-k="del" aria-label="Zmazať číslicu">⌫</button></div>
       <label class="remember"><input type="checkbox" id="remember" checked> Zapamätať si na tomto zariadení</label>
       ${cfg && cfg.isDefault ? `<p class="lock-warn">Používa sa predvolený kód <b>12345678</b>. Pred zverejnením si nastavte vlastný (README → Zmena kódu).</p>` : ""}
     </div>`;

@@ -243,7 +243,7 @@ function vOverview() {
     </div>
     <div class="stack">
       <div><div class="sec-title"><h2>Najbližšie platby</h2><a href="#rozpocet" class="small">Rozpočet →</a></div>
-        <div class="list">${pays.length ? pays.map(e => `<div class="row"><span class="dot" style="--k:${parseISO(e.due) < today() ? "var(--crit)" : "var(--gold)"}"></span>
+        <div class="list">${pays.length ? pays.map(e => `<div class="row"><span class="dot" style="--k:${parseISO(e.due) < today() ? "var(--crit)" : "var(--sea)"}"></span>
           <div><span class="t" style="cursor:default">${esc(e.name)}</span><span class="sub">${esc(e.vendor || catName(e.catId))}</span></div>
           <div class="meta"><span class="due ${parseISO(e.due) < today() ? "late" : ""}">${esc(fmtD(e.due))}</span><b class="num">${eur(left(e))}</b></div></div>`).join("")
           : `<div class="empty">Keď v Rozpočte vyplníte termín platby, objaví sa tu.</div>`}</div></div>
@@ -362,7 +362,7 @@ function vBudget() {
   </table></div>
   <section class="cols">
     <div class="card pad"><h3 style="margin-bottom:12px">Podľa kategórií</h3>
-      ${catStats.length ? `<div class="legend"><span><i style="background:var(--sage)"></i>zaplatené</span><span><i style="background:var(--gold);opacity:.45"></i>odhad nákladov</span></div>
+      ${catStats.length ? `<div class="legend"><span><i style="background:var(--sage)"></i>zaplatené</span><span><i style="background:var(--sea);opacity:.45"></i>odhad nákladov</span></div>
       <div class="catbars">${catStats.map(x => `<div class="catbar"><div class="l"><span>${esc(x.name)}</span><span class="num">${eur(x.cost)}</span></div><div class="bar"><i class="gold" style="width:${x.cost / maxC * 100}%"></i><i class="sage" style="width:${Math.min(x.paid, x.cost) / maxC * 100}%"></i></div></div>`).join("")}</div>`
       : `<p class="muted">Keď vyplníte sumy, uvidíte tu, kam idú peniaze.</p>`}</div>
     <div class="card pad"><h3 style="margin-bottom:12px">Kto čo platí</h3>
@@ -436,7 +436,7 @@ function vTimeline() {
 }
 function vPreview() {
   const list = sortedTimeline(); const W = wDate();
-  const flourish = `<svg class="flourish" viewBox="0 0 120 14" aria-hidden="true"><path d="M2 7 H48 M72 7 H118" stroke="#d7bfa3" stroke-width="1"/><circle cx="54" cy="7" r="4" fill="none" stroke="#c27b6d" stroke-width="1.4"/><circle cx="66" cy="7" r="4" fill="none" stroke="#b38b50" stroke-width="1.4"/></svg>`;
+  const flourish = `<svg class="flourish" viewBox="0 0 120 14" aria-hidden="true"><path d="M2 7 H48 M72 7 H118" stroke="#b9d0dc" stroke-width="1"/><circle cx="54" cy="7" r="4" fill="none" stroke="#2b7297" stroke-width="1.4"/><circle cx="66" cy="7" r="4" fill="none" stroke="#5aa5b8" stroke-width="1.4"/></svg>`;
   return `<div class="preview-bar"><a class="btn" href="#harmonogram">← Späť na úpravy</a><button class="btn primary" type="button" data-act="print">Vytlačiť / uložiť ako PDF</button></div>
   <article class="preview">
     <header class="preview-head"><div class="eyebrow">Program svadobného dňa</div>
@@ -458,7 +458,7 @@ function vNotes() {
     <input class="nt" id="nt-${esc(n.id)}" data-note="${esc(n.id)}" data-k="title" value="${esc(n.title)}" placeholder="Názov" aria-label="Názov poznámky">
     <textarea id="nb-${esc(n.id)}" data-note="${esc(n.id)}" data-k="body" placeholder="Text poznámky…" aria-label="Text poznámky">${esc(n.body)}</textarea>
     <div class="nf"><span>Upravené ${esc(when(n.updated))}</span><span style="display:flex;gap:10px;align-items:center">
-      <span class="swatches">${[["", "#fffaf1"], ["c-rose", "#fdf1ee"], ["c-sage", "#f1f5ee"]].map(([c, bg]) => `<button type="button" data-act="noteColor" data-id="${esc(n.id)}" data-v="${c}" style="background:${bg}" aria-label="Farba"></button>`).join("")}</span>
+      <span class="swatches">${[["", "#f6fbfd"], ["c-rose", "#eaf2fb"], ["c-sage", "#ebf6f2"]].map(([c, bg]) => `<button type="button" data-act="noteColor" data-id="${esc(n.id)}" data-v="${c}" style="background:${bg}" aria-label="Farba"></button>`).join("")}</span>
       <button class="btn sm ghost danger" type="button" data-act="delNote" data-id="${esc(n.id)}">Zmazať</button></span></div>
   </div>`).join("")}</div>` : `<div class="list"><div class="empty">Žiadne poznámky.</div></div>`}`;
 }
@@ -485,7 +485,7 @@ function vTables() {
     return `<td>${i === 0 ? "Spolu" : ""}</td>`;
   }).join("")}<td></td></tr></tfoot>` : "";
   return `<div class="cl">${side}<div>
-    <div class="page-head"><div style="flex:1;min-width:240px"><input class="input" id="tblTitle" data-act="tblTitle" data-id="${esc(t.id)}" value="${esc(t.title)}" aria-label="Názov tabuľky" style="font-family:var(--display);font-size:30px;font-weight:600;border-color:transparent;background:transparent;padding:0 4px;width:100%"></div>
+    <div class="page-head"><div style="flex:1;min-width:240px"><input class="input" id="tblTitle" data-act="tblTitle" data-id="${esc(t.id)}" value="${esc(t.title)}" aria-label="Názov tabuľky" style="font-size:24px;font-weight:700;border-color:transparent;background:transparent;padding:0 4px;width:100%"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" data-act="addCol">+ Stĺpec</button><button class="btn" type="button" data-act="tableCsv">Stiahnuť do Excelu</button><button class="btn ghost danger" type="button" data-act="delTable">Zmazať tabuľku</button></div></div>
     <div class="tbl-wrap"><table class="grid">
       <thead><tr>${t.columns.map(c => `<th class="colh ${c.type === "number" ? "r" : ""}"><button type="button" data-act="editCol" data-id="${esc(c.id)}" title="Upraviť stĺpec">${esc(c.name)} ✎</button></th>`).join("")}<th></th></tr></thead>
