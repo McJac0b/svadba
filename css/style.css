@@ -38,10 +38,10 @@ h3{font-size:18px}
 
 /* ---------- Hlavička ---------- */
 .hero{background:
-   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 60' preserveAspectRatio='none'%3E%3Cpath d='M0 38 C150 18 300 18 450 34 S750 52 900 36 S1100 20 1200 30 V60 H0Z' fill='%23d9eaf2' opacity='.7'/%3E%3Cpath d='M0 48 C200 34 350 36 520 46 S820 58 1000 46 S1150 40 1200 44 V60 H0Z' fill='%23cfe4ee' opacity='.8'/%3E%3C/svg%3E") bottom/100% 46px no-repeat,
+   url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 60' preserveAspectRatio='none'%3E%3Cpath d='M0 38 C150 18 300 18 450 34 S750 52 900 36 S1100 20 1200 30 V60 H0Z' fill='%23d9eaf2' opacity='.7'/%3E%3Cpath d='M0 48 C200 34 350 36 520 46 S820 58 1000 46 S1150 40 1200 44 V60 H0Z' fill='%23cfe4ee' opacity='.8'/%3E%3C/svg%3E") bottom/100% 30px no-repeat,
    linear-gradient(180deg, #f6fafc 0%, var(--bg) 100%);
   border-bottom:1px solid var(--line)}
-.hero-in{display:flex;justify-content:space-between;align-items:flex-end;gap:20px 40px;flex-wrap:wrap;padding-top:34px;padding-bottom:40px}
+.hero-in{display:flex;justify-content:space-between;align-items:flex-end;gap:20px 40px;flex-wrap:wrap;padding-top:34px;padding-bottom:58px}
 .hero-in>div:first-child{min-width:0;flex:1 1 320px}
 .eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--sea)}
 .names{font-weight:700;font-size:clamp(28px,5.5vw,52px);line-height:1.1;margin:8px 0 10px;letter-spacing:-.02em;overflow-wrap:anywhere}
@@ -91,7 +91,9 @@ main.wrap{padding-top:28px;padding-bottom:70px;min-height:60vh}
 /* ---------- Karty ---------- */
 .card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);min-width:0}
 .pad{padding:18px 20px}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(230px,100%),1fr));gap:16px;margin-bottom:30px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:30px}
+@media (max-width:1099px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:599px){.stats{grid-template-columns:minmax(0,1fr)}}
 .stat .k{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .stat .v{font-weight:700;font-size:32px;line-height:1.1;margin:6px 0 2px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .stat .v small{font-size:18px;color:var(--muted);font-weight:600}
@@ -264,7 +266,7 @@ select.cell.s-zmluva,select.cell.s-rezervovane{color:var(--accent)}
 }
 @media (max-width:620px){
   .wrap{padding-left:16px;padding-right:16px}
-  .hero-in{padding-top:24px;padding-bottom:34px}
+  .hero-in{padding-top:24px;padding-bottom:50px}
   .hero-right{width:100%;justify-content:space-between}
   .count{text-align:left}
   .row{grid-template-columns:auto minmax(0,1fr)}
