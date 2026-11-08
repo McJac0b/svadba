@@ -8,6 +8,7 @@
 <style>
   body{font:15px/1.5 system-ui,sans-serif;background:#eef5f9;color:#1d3341;max-width:640px;margin:40px auto;padding:0 18px}
   h1{font-weight:700}
+  h2{font-size:18px;margin:28px 0 0}
   label{display:block;margin:12px 0 4px;font-weight:600;font-size:14px}
   input{width:100%;padding:9px 11px;border:1px solid #d6e4ec;border-radius:8px;font:inherit;background:#fbfdfe;box-sizing:border-box}
   button{margin-top:16px;padding:10px 16px;border:0;border-radius:8px;background:#2b7297;color:#fff;font-weight:700;cursor:pointer}
@@ -23,6 +24,12 @@
 <input id="pin" inputmode="numeric" maxlength="8" autocomplete="off">
 <label for="a">Meno ženícha</label><input id="a" placeholder="meno">
 <label for="b">Meno nevesty</label><input id="b" placeholder="meno">
+<h2>Spoločná databáza (Supabase) – nepovinné</h2>
+<p class="note">Vyplňte, ak chcete plánovač upravovať dvaja z rôznych zariadení. Údaje sa zašifrujú kódom, takže vo verejnom kóde na GitHube nebudú čitateľné. Postup je v README v časti „Spoločná databáza“.</p>
+<label for="sbUrl">Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co" autocomplete="off">
+<label for="sbKey">API kľúč (anon public alebo publishable)</label><input id="sbKey" autocomplete="off">
+<label for="sbEmail">E-mail spoločného používateľa</label><input id="sbEmail" type="email" autocomplete="off">
+<label for="sbPass">Heslo spoločného používateľa</label><input id="sbPass" type="password" autocomplete="new-password">
 <button id="go" type="button">Vygenerovať</button>
 <p id="msg"></p>
 <textarea id="out" readonly placeholder="Tu sa objaví obsah pre js/lock-config.js"></textarea>
@@ -34,6 +41,13 @@ document.getElementById("go").onclick = async () => {
   if (!/^\d{8}$/.test(pin)) { msg.className = "err"; msg.textContent = "Kód musí mať presne 8 číslic."; return; }
   if (/^(\d)\1{7}$/.test(pin) || pin === "12345678" || pin === "87654321") { msg.className = "err"; msg.textContent = "Zvoľte menej predvídateľný kód."; return; }
   const secret = { nameA: document.getElementById("a").value.trim(), nameB: document.getElementById("b").value.trim() };
+  if (!secret.nameA || !secret.nameB) { msg.className = "err"; msg.textContent = "Vyplňte obe mená."; return; }
+  const val = id => document.getElementById(id).value.trim();
+  const sb = { url: val("sbUrl").replace(/\/+$/, ""), key: val("sbKey"), email: val("sbEmail"), password: document.getElementById("sbPass").value };
+  const filled = Object.values(sb).filter(Boolean).length;
+  if (filled && filled < 4) { msg.className = "err"; msg.textContent = "Pre spoločnú databázu vyplňte všetky štyri polia (alebo žiadne)."; return; }
+  if (filled && !/^https:\/\/[^/]+$/.test(sb.url)) { msg.className = "err"; msg.textContent = "Project URL má tvar https://xxxx.supabase.co"; return; }
+  if (filled) secret.sb = sb;
   const iter = 250000, salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
   const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pin), "PBKDF2", false, ["deriveKey"]);
   const key = await crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: iter, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt"]);

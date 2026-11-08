@@ -115,6 +115,129 @@ function save(quiet) {
   try { localStorage.setItem(KEY, JSON.stringify(S)); storageOk = true; }
   catch (e) { storageOk = false; toast("Uloženie zlyhalo – stiahnite si zálohu (Export)."); }
   if (!quiet) renderFootSaved();
+  if (sync.client) queuePush();
+}
+
+/* ---------- spoločná databáza (Supabase) ----------
+   Celý plánovač je jeden riadok v tabuľke planner (data = JSON, version = počítadlo zápisov).
+   Zápis prejde len vtedy, keď sa version nezmenila. Ak medzitým uložil partner, jeho verzia sa
+   stiahne a zlúči s našimi zmenami (3-cestne voči poslednej spoločnej verzii, po položkách podľa id). */
+const ROW = "main", BASE_KEY = "svadba-sync-base";
+const sync = { client: null, version: 0, base: null, pushing: false, dirty: false, timer: null, pendingRemote: false, status: "", msg: "" };
+const clone = o => o === undefined ? undefined : JSON.parse(JSON.stringify(o));
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const isObj = o => o !== null && typeof o === "object" && !Array.isArray(o);
+const isIdList = a => Array.isArray(a) && a.every(x => isObj(x) && typeof x.id === "string");
+function merge(b, l, r) {
+  if (same(l, b)) return clone(r);
+  if (same(r, b) || same(l, r)) return clone(l);
+  if (isObj(l) && isObj(r)) {
+    const out = {};
+    new Set([...Object.keys(r), ...Object.keys(l)]).forEach(k => { const v = merge(isObj(b) ? b[k] : undefined, l[k], r[k]); if (v !== undefined) out[k] = v; });
+    return out;
+  }
+  if (isIdList(l) && isIdList(r)) {
+    const byId = a => new Map((isIdList(a) ? a : []).map(x => [x.id, x]));
+    const bm = byId(b), lm = byId(l), rm = byId(r), out = [];
+    r.forEach(it => {
+      if (lm.has(it.id)) out.push(merge(bm.get(it.id), lm.get(it.id), it));
+      else if (!bm.has(it.id) || !same(it, bm.get(it.id))) out.push(clone(it)); // pridané alebo zmenené u partnera
+      // inak sme položku zmazali my
+    });
+    l.forEach(it => { if (!rm.has(it.id) && (!bm.has(it.id) || !same(it, bm.get(it.id)))) out.push(clone(it)); }); // pridané u nás / u partnera zmazané, u nás zmenené
+    return out;
+  }
+  return clone(l);
+}
+function storeBase(version, data) {
+  sync.version = version; sync.base = clone(data);
+  try { localStorage.setItem(BASE_KEY, JSON.stringify({ version, data })); } catch (e) { }
+}
+function loadBase() {
+  try { const b = JSON.parse(localStorage.getItem(BASE_KEY) || "null"); if (b && b.data) { sync.version = b.version; sync.base = migrate(b.data); } } catch (e) { }
+}
+const SYNC_TEXT = { connecting: "Pripájam sa k spoločnej databáze…", ok: "Synchronizované so spoločnou databázou ✓", saving: "Ukladám do spoločnej databázy…", offline: "Bez pripojenia – zmeny sa odošlú, keď bude internet." };
+function setStatus(st, msg) {
+  sync.status = st; sync.msg = msg || SYNC_TEXT[st] || "";
+  const el = $("syncInfo"); if (el) { el.textContent = sync.msg; el.className = "sync s-" + st; }
+}
+function queuePush() { sync.dirty = true; setStatus("saving"); clearTimeout(sync.timer); sync.timer = setTimeout(push, 700); }
+async function push() {
+  if (!sync.client || sync.pushing || !sync.dirty) return;
+  sync.pushing = true; sync.dirty = false;
+  const data = clone(S);
+  try {
+    const { data: rows, error } = await sync.client.from("planner").update({ data, version: sync.version + 1, updated_at: new Date().toISOString() }).eq("id", ROW).eq("version", sync.version).select("version");
+    if (error) throw error;
+    if (rows.length) { storeBase(rows[0].version, data); if (!sync.dirty) setStatus("ok"); }
+    else await pull(); // partner uložil skôr – zlúčiť a skúsiť znova
+  } catch (e) {
+    sync.dirty = true; setStatus("offline");
+    clearTimeout(sync.timer); sync.timer = setTimeout(push, 15000);
+  } finally {
+    sync.pushing = false;
+    if (sync.dirty && sync.status !== "offline") { clearTimeout(sync.timer); sync.timer = setTimeout(push, 300); }
+  }
+}
+const isEditing = () => { const a = document.activeElement; return modalOpen || !!(a && a.closest && a.closest("main") && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)); };
+async function pull() {
+  if (!sync.client) return;
+  if (isEditing()) { sync.pendingRemote = true; return; } // nerušiť rozpísaný formulár ani bunku
+  sync.pendingRemote = false;
+  const { data: row, error } = await sync.client.from("planner").select("data, version").eq("id", ROW).maybeSingle();
+  if (error || !row) { if (error) setStatus("offline"); return; }
+  if (row.version === sync.version) return;
+  if (isEditing()) { sync.pendingRemote = true; return; }
+  const remote = migrate(row.data);
+  const merged = sync.base ? merge(sync.base, S, remote) : remote;
+  storeBase(row.version, remote);
+  const changed = !same(merged, S);
+  S = merged;
+  try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { }
+  if (!same(merged, remote)) queuePush(); else if (!sync.dirty) setStatus("ok");
+  if (changed) { render(); toast("Načítané zmeny od partnera"); }
+}
+async function startSync(cfg) {
+  if (!window.supabase || !cfg.url || !cfg.key) { setStatus("error", "Spoločná databáza nie je dostupná – ukladá sa len v tomto prehliadači."); return; }
+  setStatus("connecting");
+  try {
+    const client = window.supabase.createClient(cfg.url, cfg.key, { auth: { persistSession: true, storageKey: "svadba-sb-auth" } });
+    const { data: { session } } = await client.auth.getSession();
+    if (!session) {
+      const { error } = await client.auth.signInWithPassword({ email: cfg.email, password: cfg.password });
+      if (error) { setStatus("error", "Prihlásenie do spoločnej databázy zlyhalo: " + error.message); return; }
+    }
+    loadBase();
+    const { data: row, error } = await client.from("planner").select("data, version").eq("id", ROW).maybeSingle();
+    if (error) throw error;
+    if (!row) {
+      // prvé pripojenie vôbec: dáta z tohto prehliadača sa stanú spoločnými
+      const { error: e2 } = await client.from("planner").insert({ id: ROW, data: S, version: 1 });
+      if (e2) throw e2;
+      storeBase(1, S); toast("Dáta z tohto prehliadača sú teraz v spoločnej databáze");
+    } else if (!sync.base) {
+      // toto zariadenie sa pripája prvýkrát a databáza už má dáta
+      const remote = migrate(row.data);
+      if (!same(remote, S) && !confirm("V spoločnej databáze už sú dáta.\n\nOK = použiť dáta zo spoločnej databázy (odporúčané)\nZrušiť = prepísať spoločnú databázu dátami z tohto prehliadača")) {
+        storeBase(row.version, remote); sync.client = client; queuePush();
+      } else { S = remote; storeBase(row.version, remote); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
+    } else {
+      // zmeny urobené v tomto prehliadači bez pripojenia sa zlúčia so spoločnou verziou
+      const remote = migrate(row.data);
+      S = merge(sync.base, S, remote); storeBase(row.version, remote);
+      try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { }
+    }
+    sync.client = client;
+    if (!same(S, sync.base)) queuePush(); else setStatus("ok");
+    render();
+    client.channel("planner").on("postgres_changes", { event: "UPDATE", schema: "public", table: "planner", filter: `id=eq.${ROW}` },
+      p => { if (p.new && p.new.version !== sync.version && !sync.pushing) pull(); }).subscribe();
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") pull(); });
+    window.addEventListener("online", () => { pull(); push(); });
+    document.addEventListener("focusout", () => setTimeout(() => { if (sync.pendingRemote && !isEditing()) pull(); }, 50));
+  } catch (e) {
+    if (sync.client) setStatus("offline"); else setStatus("error", "Spoločná databáza nie je dostupná – ukladá sa len v tomto prehliadači.");
+  }
 }
 
 const ui = {
@@ -223,14 +346,15 @@ function renderNav() {
   $("nav").innerHTML = TABS.map(([k, l]) => `<a href="#${k}" ${k === t ? 'aria-current="page"' : ""}>${l}${counts[k] ? `<span class="cnt">${counts[k]}</span>` : ""}</a>`).join("");
 }
 function renderFoot() {
-  $("foot").innerHTML = `<span id="savedInfo">${storageOk ? "Všetko sa ukladá automaticky v tomto prehliadači." : "Pozor: uloženie v prehliadači nefunguje."}</span>
+  $("foot").innerHTML = `<span id="savedInfo">${!storageOk ? "Pozor: uloženie v prehliadači nefunguje." : sync.msg ? "" : "Všetko sa ukladá automaticky v tomto prehliadači."}</span>
     <button class="btn sm ghost" data-act="export" type="button">Stiahnuť zálohu</button>
     <button class="btn sm ghost" data-act="import" type="button">Načítať zálohu</button>
-    <button class="btn sm ghost" data-act="lock" type="button">Zamknúť</button>`;
+    <button class="btn sm ghost" data-act="lock" type="button">Zamknúť</button>
+    ${sync.msg ? `<span id="syncInfo" class="sync s-${sync.status}">${esc(sync.msg)}</span>` : ""}`;
 }
 let savedTimer;
 function renderFootSaved() {
-  const el = $("savedInfo"); if (!el) return;
+  const el = $("savedInfo"); if (!el || sync.client) return;
   el.textContent = storageOk ? "Uložené ✓" : "Pozor: uloženie v prehliadači nefunguje.";
   clearTimeout(savedTimer); savedTimer = setTimeout(() => { if ($("savedInfo") && storageOk) $("savedInfo").textContent = "Všetko sa ukladá automaticky v tomto prehliadači."; }, 1600);
 }
@@ -620,7 +744,7 @@ function openForm({ title, fields, values = {}, onSave, onDelete, hint, saveLabe
     onDelete(); closeModal(); save(); render();
   });
 }
-function closeModal() { $("modalBack").classList.remove("open"); $("modal").innerHTML = ""; modalOpen = false; }
+function closeModal() { $("modalBack").classList.remove("open"); $("modal").innerHTML = ""; modalOpen = false; if (sync.pendingRemote) setTimeout(pull, 0); }
 
 const ownerOpts = () => [["AB", "Spolu"], ["A", `${nameA()} (ženích)`], ["B", `${nameB()} (nevesta)`]];
 function taskForm(t) {
@@ -845,7 +969,7 @@ function importJson(file) {
     try {
       const d = JSON.parse(r.result);
       if (!d || (d.version !== 1 && d.version !== 2) || !Array.isArray(d.tasks)) throw new Error("format");
-      if (!confirm("Načítať zálohu? Súčasné dáta v tomto prehliadači sa nahradia.")) return;
+      if (!confirm(`Načítať zálohu? Súčasné dáta ${sync.client ? "v spoločnej databáze (aj u partnera)" : "v tomto prehliadači"} sa nahradia.`)) return;
       S = migrate(d); save(); closeModal(); render(); toast("Záloha načítaná");
     } catch (e) { alert("Tento súbor nie je záloha svadobného plánovača."); }
   };
@@ -864,9 +988,9 @@ document.addEventListener("click", ev => {
     case "closeModal": closeModal(); break;
     case "export": exportJson(); break;
     case "import": $("importFile").click(); break;
-    case "reset": if (confirm("Naozaj vymazať všetky vaše dáta a začať s pôvodným checklistom? Odporúčame najprv stiahnuť zálohu.")) { S = freshState(); save(); closeModal(); render(); toast("Plánovač obnovený"); } break;
+    case "reset": if (confirm(`Naozaj vymazať všetky dáta${sync.client ? " (aj v spoločnej databáze u partnera)" : ""} a začať s pôvodným checklistom? Odporúčame najprv stiahnuť zálohu.`)) { S = freshState(); save(); closeModal(); render(); toast("Plánovač obnovený"); } break;
     case "print": window.print(); break;
-    case "lock": if (window.lockPlanner) window.lockPlanner(); break;
+    case "lock": (sync.client ? sync.client.auth.signOut() : Promise.resolve()).catch(() => { }).then(() => { if (window.lockPlanner) window.lockPlanner(); }); break;
     // checklist
     case "sec": ui.sec = id; render(); window.scrollTo({ top: $("view").offsetTop - 60 }); break;
     case "taskFilter": ui.taskFilter = el.dataset.v; render(); break;
@@ -999,5 +1123,6 @@ window.whenUnlocked(secret => {
   if (changed) save(true);
   document.title = `${nameA()} & ${nameB()} · Svadobný plánovač`;
   render();
+  if (secret && secret.sb) startSync(secret.sb);
 });
 })();

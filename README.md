@@ -48,13 +48,27 @@ Ako to funguje:
 
 ## Kde sú dáta
 
-Všetko sa ukladá do `localStorage` **v prehliadači, kde plánovač používate**. Na GitHub sa nič neposiela.
+Bez spoločnej databázy sa všetko ukladá do `localStorage` **v prehliadači, kde plánovač používate**.
 
 - **Záloha dát → Stiahnuť zálohu** uloží `.json` súbor so všetkým.
-- **Načítať zálohu** ho nahrá späť (napr. na inom zariadení alebo u partnera).
+- **Načítať zálohu** ho nahrá späť (napr. na inom zariadení).
 - Pri vymazaní dát prehliadača sa dáta stratia, preto si zálohu sťahujte priebežne.
 
-> Ak budete chcieť, aby ste plánovač upravovali obaja naraz z rôznych zariadení, dá sa doplniť synchronizácia cez Firebase / Supabase. Ostatný kód ostane rovnaký, mení sa len funkcia `save()` / `load()` v `js/app.js`.
+## Spoločná databáza (Supabase)
+
+Aby ste plánovač upravovali dvaja z rôznych zariadení, dáta sa ukladajú do jednej databázy v Supabase. Obaja len otvoríte stránku a zadáte 8-miestny kód; prihlásenie do databázy prebehne samo. Zmeny partnera sa zobrazia do pár sekúnd. Keď upravujete naraz, zmeny sa zlúčia (napr. jeden mení hostí, druhý rozpočet). Bez internetu sa ukladá do prehliadača a odošle sa po pripojení.
+
+**Jednorazové nastavenie (asi 10 minút):**
+
+1. Na [supabase.com](https://supabase.com) si založte účet a nový projekt (bezplatný plán stačí, región napr. Frankfurt). Heslo databázy si uložte, aplikácia ho nepotrebuje.
+2. **SQL Editor → New query**: vložte obsah súboru `supabase/schema.sql` a kliknite **Run**.
+3. **Authentication → Sign In / Providers** (alebo *Settings*): vypnite **Allow new users to sign up**.
+4. **Authentication → Users → Add user → Create new user**: zadajte e-mail a silné heslo spoločného účtu, zaškrtnite **Auto Confirm User**. Tento účet budete používať obaja (zadávať ho nebudete, zašifruje sa do kódu).
+5. **Project Settings → API Keys**: skopírujte **Project URL** a kľúč **anon public** (záložka *Legacy API keys*), prípadne **publishable** kľúč.
+6. Otvorte lokálne `tools/nastav-kod.html`, zadajte svoj 8-miestny kód, mená a vyplňte časť *Spoločná databáza* (URL, kľúč, e-mail a heslo z bodu 4). Kliknite **Vygenerovať** a výsledkom nahraďte `js/lock-config.js`. Nahrajte na GitHub.
+7. Otvorte stránku **najprv na zariadení, kde máte doterajšie dáta**: tie sa nahrajú do databázy. Na ďalšom zariadení potvrďte **OK = použiť dáta zo spoločnej databázy**.
+
+Stav synchronizácie je dole na stránke. Údaje k databáze sú v `js/lock-config.js` zašifrované kódom, vo verejnom kóde nie sú čitateľné. Bezplatný projekt Supabase sa po týždni bez používania uspí; v Supabase ho jedným klikom zobudíte (dáta ostanú).
 
 ## Štruktúra
 
@@ -63,7 +77,8 @@ index.html        – kostra stránky
 robots.txt        – zákaz indexovania
 js/lock-config.js – zašifrované údaje pre zámok (generuje tools/nastav-kod.html)
 js/lock.js        – obrazovka s kódom
-tools/nastav-kod.html – nástroj na zmenu kódu (otvárajte lokálne)
+tools/nastav-kod.html – nástroj na zmenu kódu a údajov k databáze (otvárajte lokálne)
+supabase/schema.sql – tabuľka a prístupové pravidlá pre spoločnú databázu
 css/style.css     – vzhľad (farby sú premenné v :root na začiatku súboru)
 js/data.js        – štartovacie dáta: sekcie a úlohy checklistu, kategórie rozpočtu, program, tabuľky
 js/app.js         – celá logika aplikácie

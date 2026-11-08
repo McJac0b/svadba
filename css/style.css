@@ -65,6 +65,10 @@ h3{font-size:18px}
 
 main.wrap{padding-top:28px;padding-bottom:70px;min-height:60vh}
 .foot{padding-bottom:40px;color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center}
+.foot #savedInfo:empty{display:none}
+.sync{flex-basis:100%;font-weight:600}
+.sync.s-ok{color:var(--sage)}
+.sync.s-offline,.sync.s-error{color:var(--crit)}
 
 /* ---------- Ovládacie prvky ---------- */
 .btn{display:inline-flex;align-items:center;gap:6px;font-weight:600;font-size:14px;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);cursor:pointer;white-space:nowrap;text-decoration:none}
