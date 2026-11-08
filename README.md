@@ -9,7 +9,7 @@ Statická webová aplikácia (HTML + CSS + JavaScript, bez knižníc a bez build
 | **Prehľad** | odpočet dní, plnenie checklistu (zvlášť ženích / nevesta / spolu), rozpočet, platby, hostia, program |
 | **Checklist** | ~100 úloh v 10 sekciách (vrátane **Ženích** a **Nevesta**), vlastné sekcie, rýchle pridávanie úloh, filtre podľa stavu a osoby, zoskupenie podľa sekcií alebo času |
 | **Rozpočet** | editovateľná tabuľka podľa kategórií: odhad, dohodnutá cena, zaplatené, zostáva, termín platby, stav, kto platí; súčty, grafy, export do Excelu |
-| **Hostia** | dospelí/deti, strana, skupina, odpoveď, menu, alergie, preferencie, ubytovanie, odvoz, stôl, kontakt, dar; súhrny a export do Excelu |
+| **Hostia** | pozvánky (rodina, pár, jednotlivec) so zoznamom osôb; pri každej osobe dospelý/dieťa a vek, menu, porcia, alergie a vlastná odpoveď; za pozvánku strana, skupina, stôl, kontakt, ubytovanie, odvoz, dar; súhrny menu, porcií a alergií, export do Excelu po osobách |
 | **Harmonogram** | body programu s časom, názvom, popisom, miestom a zodpovednou osobou + **náhľad časovej osi** (dá sa vytlačiť / uložiť ako PDF) |
 | **Poznámky** | kartičky s automatickým ukladaním |
 | **Tabuľky** | vlastné tabuľky so stĺpcami typu text / číslo / zaškrtávacie / dátum, súčty, export; pripravené: Porovnanie ponúk, Kto čo platí, Kontakty, Svadobné dary |

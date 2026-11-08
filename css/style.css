@@ -182,7 +182,7 @@ select.cell.s-zmluva,select.cell.s-rezervovane{color:var(--accent)}
 .left-col{font-weight:600}
 .neg{color:var(--crit)}
 
-.sumgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:24px}
+.sumgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:24px}
 .sumgrid>div{background:var(--paper);padding:14px 16px;min-width:0}
 .sumgrid .k{font-size:12px;font-weight:700;color:var(--muted)}
 .sumgrid .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px;overflow-wrap:anywhere}
@@ -196,6 +196,35 @@ select.cell.s-zmluva,select.cell.s-rezervovane{color:var(--accent)}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
 
 .chips{display:flex;flex-wrap:wrap;gap:8px}
+/* ---------- Hostia: pozvánky a osoby ---------- */
+.chip-rows{display:grid;gap:10px;margin-bottom:22px}
+.chips-l{align-self:center;min-width:90px}
+.chip.alg{background:var(--crit-soft);border-color:#efcdc8}
+.chip.alg b{color:var(--crit)}
+table.guests tr.hh td{background:var(--tint);border-top:2px solid var(--line-strong)}
+table.guests tbody tr.hh:first-child td{border-top:0}
+table.guests .hh-name{font-weight:700;color:var(--ink);padding-left:0;font-size:14px}
+table.guests .hh-sub{display:block;font-size:12px;color:var(--muted);font-weight:500;margin-top:2px}
+table.guests tr.pp td.pn{padding-left:22px}
+table.guests tr.pp td.pn .btn{color:var(--ink);font-weight:600;padding-left:0}
+table.guests tr.pp.out td{opacity:.55}
+table.guests input.cell.alg{color:var(--crit);font-weight:700}
+table.guests select.cell{min-width:150px}
+.modal.wide{max-width:780px}
+.people-h{display:flex;justify-content:space-between;flex-wrap:wrap;gap:2px 12px;font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px}
+.people-h .small{font-weight:500}
+.people-ed{display:grid;gap:10px;counter-reset:person}
+.person{border:1px solid var(--line);border-radius:8px;background:var(--tint);padding:8px 12px 12px;counter-increment:person}
+.person-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
+.person-no{font-size:14px}
+.person-no::before{content:"Osoba " counter(person)}
+.person-f{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 10px}
+.person-f>label{font-size:12px;gap:3px}
+.person-f .pf-wide{grid-column:span 2}
+.person-f .pf-age.is-off{display:none}
+.person-f .input{background:var(--paper);font-size:14px;padding:6px 9px}
+.people-add{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+
 .chip{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:4px 10px;font-size:13px}
 .chip b{font-variant-numeric:tabular-nums}
 
@@ -274,6 +303,8 @@ select.cell.s-zmluva,select.cell.s-rezervovane{color:var(--accent)}
   .tl-edit .row{grid-template-columns:76px minmax(0,1fr)}
   .fields{grid-template-columns:1fr}
   .fields label.cb{padding-top:0}
+  .person-f{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .person-f .pf-wide{grid-column:1/-1}
   .modal{padding:20px 16px 16px}
   .ptl::before{left:65px}
   .pitem{grid-template-columns:52px 32px minmax(0,1fr)}
