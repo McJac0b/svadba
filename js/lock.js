@@ -32,7 +32,8 @@
   // Už odomknuté na tomto zariadení?
   try {
     const saved = localStorage.getItem(REMEMBER_KEY) || sessionStorage.getItem(REMEMBER_KEY);
-    if (saved) { const s = JSON.parse(saved); if (s && s.nameA) { finish(s); return; } }
+    // zapamätané odomknutie platí len pre aktuálny lock-config (po jeho zmene treba kód zadať znova)
+    if (saved) { const s = JSON.parse(saved); if (s && s.nameA && window.LOCK && s.cfg === window.LOCK.ct) { finish(s.secret); return; } }
   } catch (e) { }
 
   const cfg = window.LOCK;
@@ -71,7 +72,7 @@
       const secret = await decrypt(pin, cfg);
       setAttempts({ n: 0, t: 0 });
       const store = box.querySelector("#remember").checked ? localStorage : sessionStorage;
-      try { store.setItem(REMEMBER_KEY, JSON.stringify(secret)); } catch (e) { }
+      try { store.setItem(REMEMBER_KEY, JSON.stringify({ nameA: secret.nameA, cfg: cfg.ct, secret })); } catch (e) { }
       finish(secret);
     } catch (e) {
       if (e && e.message === "nocrypto") { msg.textContent = "Tento prehliadač nepodporuje odomknutie. Otvorte stránku cez https."; busy = false; return; }
