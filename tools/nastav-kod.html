@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Nastavenie kódu</title>
+<style>
+  body{font:15px/1.5 system-ui,sans-serif;background:#faf6f0;color:#3d302a;max-width:640px;margin:40px auto;padding:0 18px}
+  h1{font-family:Georgia,serif;font-weight:500}
+  label{display:block;margin:12px 0 4px;font-weight:600;font-size:14px}
+  input{width:100%;padding:9px 11px;border:1px solid #e2d6c8;border-radius:9px;font:inherit;background:#fffdf9;box-sizing:border-box}
+  button{margin-top:16px;padding:10px 16px;border:0;border-radius:10px;background:#c27b6d;color:#fff;font-weight:700;cursor:pointer}
+  textarea{width:100%;min-height:150px;margin-top:14px;font:12px/1.4 ui-monospace,monospace;border:1px solid #e2d6c8;border-radius:9px;padding:10px;box-sizing:border-box}
+  .note{background:#f6eddd;border-radius:10px;padding:10px 12px;font-size:14px}
+  .err{color:#bd5340}
+</style>
+</head>
+<body>
+<h1>Nastavenie kódu plánovača</h1>
+<p class="note">Túto stránku si otvorte lokálne (dvojklik na súbor alebo cez <code>python3 -m http.server</code>). Kód sa nikam neposiela, všetko sa počíta vo vašom prehliadači.</p>
+<label for="pin">Nový 8-miestny kód (iba číslice)</label>
+<input id="pin" inputmode="numeric" maxlength="8" autocomplete="off">
+<label for="a">Meno ženícha</label><input id="a" placeholder="meno">
+<label for="b">Meno nevesty</label><input id="b" placeholder="meno">
+<button id="go" type="button">Vygenerovať</button>
+<p id="msg"></p>
+<textarea id="out" readonly placeholder="Tu sa objaví obsah pre js/lock-config.js"></textarea>
+<p>Celý text skopírujte a nahraďte ním obsah súboru <code>js/lock-config.js</code>. Potom zmeny nahrajte na GitHub.</p>
+<script>
+const enc = u => btoa(String.fromCharCode(...u));
+document.getElementById("go").onclick = async () => {
+  const pin = document.getElementById("pin").value.trim(), msg = document.getElementById("msg");
+  if (!/^\d{8}$/.test(pin)) { msg.className = "err"; msg.textContent = "Kód musí mať presne 8 číslic."; return; }
+  if (/^(\d)\1{7}$/.test(pin) || pin === "12345678" || pin === "87654321") { msg.className = "err"; msg.textContent = "Zvoľte menej predvídateľný kód."; return; }
+  const secret = { nameA: document.getElementById("a").value.trim(), nameB: document.getElementById("b").value.trim() };
+  const iter = 250000, salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pin), "PBKDF2", false, ["deriveKey"]);
+  const key = await crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: iter, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["encrypt"]);
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, new TextEncoder().encode(JSON.stringify(secret))));
+  document.getElementById("out").value = `/* Vygenerované nástrojom tools/nastav-kod.html. Obsahuje zašifrované údaje, nie samotný kód. */\nwindow.LOCK = ${JSON.stringify({ v: 1, iter, salt: enc(salt), iv: enc(iv), ct: enc(ct) }, null, 2)};\n`;
+  msg.className = ""; msg.textContent = "Hotovo. Kód si zapamätajte – nedá sa z tohto súboru zistiť.";
+};
+</script>
+</body>
+</html>
