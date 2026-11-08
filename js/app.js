@@ -25,6 +25,15 @@ const MENU = [["standard", "Štandardné"], ["vegetarian", "Vegetariánske"], ["
 const PORTIONS = [["cela", "Celá porcia"], ["polovicna", "Polovičná porcia"], ["bez", "Bez jedla"]];
 const P_RSVP = [["", "Podľa rodiny"], ["pride", "Príde"], ["mozno", "Možno"], ["nepride", "Nepríde"]];
 const P_TYPE = [["a", "Dospelý"], ["k", "Dieťa"]];
+// Alkohol: rate = predvolená spotreba na osobu, ktorá pije len tento druh (v jednotke unit).
+const DRINKS = [
+  { k: "pivo", label: "Pivo", unit: "l", rate: 3 },
+  { k: "vino_b", label: "Biele víno", unit: "fľ. 0,75 l", rate: 1 },
+  { k: "vino_c", label: "Červené víno", unit: "fľ. 0,75 l", rate: 1 },
+  { k: "sekt", label: "Prosecco / sekt", unit: "fľ. 0,75 l", rate: 0.5 },
+  { k: "tvrdy", label: "Tvrdý alkohol", unit: "fľ. 0,7 l", rate: 0.35 }
+];
+const NO_DRINK = "nepije";
 const KINDS = [["priprava", "Príprava"], ["obrad", "Obrad"], ["foto", "Fotenie"], ["hostina", "Jedlo a hostina"], ["zabava", "Zábava"], ["tradicia", "Tradícia"], ["ine", "Iné"]];
 const COLTYPES = [["text", "Text"], ["number", "Číslo / suma"], ["check", "Zaškrtávacie"], ["date", "Dátum"]];
 const TABS = [["prehlad", "Prehľad"], ["checklist", "Checklist"], ["rozpocet", "Rozpočet"], ["hostia", "Hostia"], ["harmonogram", "Harmonogram"], ["poznamky", "Poznámky"], ["tabulky", "Tabuľky"]];
@@ -77,7 +86,7 @@ function freshState() {
   });
   return s;
 }
-const newPerson = (kid, over) => ({ id: uid("p"), name: "", kid: !!kid, age: "", menu: kid ? "detske" : "standard", portion: kid ? "polovicna" : "cela", allergies: "", rsvp: "", ...over });
+const newPerson = (kid, over) => ({ id: uid("p"), name: "", kid: !!kid, age: "", menu: kid ? "detske" : "standard", portion: kid ? "polovicna" : "cela", allergies: "", rsvp: "", drinks: [], ...over });
 // Verzia 1 mala pri hosťovi len počty dospelých a detí a jedno menu. Verzia 2 má zoznam osôb (people).
 function migrate(s) {
   if (s.version === 1) {
@@ -139,6 +148,9 @@ const allPeople = () => S.guests.flatMap(g => g.people.map((p, i) => ({ g, p, i,
 // Bezmenná osoba: „Dospelý 2“ / „Dieťa 1“ (číslované zvlášť), s názvom rodiny tam, kde chýba kontext.
 const personName = (g, p, i) => p.name || (g.people.length === 1 ? g.name : `${p.kid ? "Dieťa" : "Dospelý"} ${g.people.slice(0, i + 1).filter(x => x.kid === p.kid).length}`);
 const personFullName = (g, p, i) => (p.name || g.people.length === 1) ? personName(g, p, i) : `${g.name} – ${personName(g, p, i)}`;
+const drinksOf = p => p.kid ? [] : (p.drinks || []);
+const drinkLabel = p => { const d = drinksOf(p); return d.includes(NO_DRINK) ? "Nepije" : d.map(k => (DRINKS.find(x => x.k === k) || {}).label).filter(Boolean).join(", "); };
+const drinkRate = k => { const r = (S.settings.drinkRates || {})[k]; return r === undefined || r === "" ? DRINKS.find(x => x.k === k).rate : num(r); };
 const kidAge = p => p.kid && String(p.age ?? "").trim() !== "" ? `${num(p.age)} r.` : "";
 const sectionName = id => (S.sections.find(s => s.id === id) || { name: "Bez sekcie" }).name;
 const timeKey = t => { const m = /^(\d{1,2}):(\d{2})/.exec(t || ""); if (!m) return 99999; const v = +m[1] * 60 + +m[2]; return v < 300 ? v + 1440 : v; };
@@ -412,6 +424,30 @@ function vGuests() {
   const sideCounts = count([["A", nameA()], ["B", nameB()], ["AB", "Spoloční"]], x => x.g.side || "AB");
   const allergic = coming.filter(x => (x.p.allergies || "").trim());
   const listPersons = list.reduce((a, g) => a + persons(g), 0);
+  const drinkers = coming.filter(x => !x.p.kid);
+  const noDrink = drinkers.filter(x => drinksOf(x.p).includes(NO_DRINK)).length;
+  const unknown = drinkers.filter(x => !drinksOf(x.p).length).length;
+  // kto pije viac druhov, jeho spotreba sa rozdelí rovnakým dielom
+  const drinkStats = DRINKS.map(d => {
+    let n = 0, share = 0;
+    drinkers.forEach(x => { const l = drinksOf(x.p).filter(k => k !== NO_DRINK); if (l.includes(d.k)) { n++; share += 1 / l.length; } });
+    return { ...d, n, qty: share * drinkRate(d.k) };
+  });
+  const qtyText = d => {
+    if (!d.n) return `<span class="muted">–</span>`;
+    const q = Math.ceil(d.qty);
+    if (d.unit === "l") { const kegs = Math.ceil(d.qty / 50); return `<b>${q} l</b> <span class="muted">· ${kegs} ${plural(kegs, "sud", "sudy", "sudov")} po 50 l</span>`; }
+    return `<b>${q} ${plural(q, "fľaša", "fľaše", "fliaš")}</b> <span class="muted">(${esc(d.unit.replace("fľ. ", ""))})</span>`;
+  };
+  const drinksOut = drinkers.length ? `<section class="drinks-out">
+    <div class="sec-title"><h3>Alkohol</h3><span class="small muted">${drinkers.length} ${plural(drinkers.length, "dospelý", "dospelí", "dospelých")} · nepije ${noDrink}${unknown ? ` · <b class="warn">neuvedené ${unknown}</b>` : ""}</span></div>
+    <div class="tbl-wrap"><table class="grid">
+      <thead><tr><th>Druh</th><th class="r">Pije</th><th>Spotreba na osobu</th><th>Odhad spolu</th></tr></thead>
+      <tbody>${drinkStats.map(d => `<tr><td class="ro left-col">${esc(d.label)}</td><td class="ro r num">${d.n}</td>
+        <td class="ro"><span class="rate"><input class="cell" type="number" min="0" step="0.05" inputmode="decimal" id="dr-${d.k}" data-act="drinkRate" data-k="${d.k}" value="${drinkRate(d.k)}" aria-label="Spotreba na osobu: ${esc(d.label)}"> ${esc(d.unit)}</span></td>
+        <td class="ro">${qtyText(d)}</td></tr>`).join("")}</tbody></table></div>
+    <p class="small muted drinks-hint">Ráta sa s dospelými, ktorí neodmietli pozvanie. Spotreba na osobu platí pre hosťa, ktorý pije len tento druh; kto si vybral viac druhov, jeho spotreba sa medzi ne rozdelí. Odhad je zaokrúhlený nahor, rezervu si pripočítajte.${unknown ? ` ${unknown} ${plural(unknown, "dospelý nemá", "dospelí nemajú", "dospelých nemá")} alkohol vyplnený, v odhade nie ${plural(unknown, "je", "sú", "sú")}.` : ""}</p>
+  </section>` : "";
   const chipRow = (label, items) => items.length ? `<div class="chips"><span class="small muted chips-l">${label}</span>${items.join("")}</div>` : "";
   const hhRow = g => {
     const k = g.people.filter(p => p.kid).length, a = g.people.length - k;
@@ -420,7 +456,7 @@ function vGuests() {
         <span class="hh-sub">${a} ${plural(a, "dospelý", "dospelí", "dospelých")}${k ? ` · ${k} ${plural(k, "dieťa", "deti", "detí")}` : ""}</span></td>
       <td class="ro"><span class="pill ${g.side === "B" ? "rose" : g.side === "A" ? "" : "line"}">${esc(sideName(g.side || "AB"))}</span>${g.group ? `<span class="hh-sub">${esc(g.group)}</span>` : ""}</td>
       <td><select class="cell st" id="gr-${esc(g.id)}" data-guest="${esc(g.id)}" data-k="rsvp" aria-label="Odpoveď rodiny ${esc(g.name)}">${opt(RSVP, g.rsvp || "neodoslane")}</select></td>
-      <td class="ro small muted" colspan="3" style="white-space:normal">${esc(g.prefs)}</td>
+      <td class="ro small muted" colspan="4" style="white-space:normal">${esc(g.prefs)}</td>
       <td class="ro">${g.lodging ? `<span class="pill sage">${num(g.nights) ? num(g.nights) + " " + plural(num(g.nights), "noc", "noci", "nocí") : "ubyt."}</span>` : ""}${g.transport ? ` <span class="pill line">odvoz</span>` : ""}</td>
       <td><input class="cell" id="gt-${esc(g.id)}" data-guest="${esc(g.id)}" data-k="table" value="${esc(g.table)}" placeholder="–" aria-label="Stôl" style="min-width:56px;width:64px"></td>
     </tr>`;
@@ -436,6 +472,7 @@ function vGuests() {
       <td><select class="cell" ${attrs("menu")} aria-label="Menu: ${who}">${opt(MENU, p.menu || "standard")}</select></td>
       <td><select class="cell" ${attrs("portion")} aria-label="Porcia: ${who}">${opt(PORTIONS, p.portion || "cela")}</select></td>
       <td><input class="cell wide ${(p.allergies || "").trim() ? "alg" : ""}" ${attrs("allergies")} value="${esc(p.allergies)}" placeholder="–" aria-label="Alergie: ${who}"></td>
+      <td class="ro small">${p.kid ? `<span class="muted">–</span>` : `<button class="btn ghost sm drink-btn" type="button" data-act="editGuest" data-id="${esc(g.id)}" aria-label="Alkohol: ${who}">${esc(drinkLabel(p)) || `<span class="muted">vyplniť</span>`}</button>`}</td>
       <td></td><td></td>
     </tr>`;
   };
@@ -457,6 +494,7 @@ function vGuests() {
     ${chipRow("Podľa strany:", sideCounts.map(x => `<span class="chip">${esc(x.l)} <b>${x.n}</b></span>`))}
     ${chipRow("Alergie:", allergic.map(x => `<span class="chip alg">${esc(personFullName(x.g, x.p, x.i))}: <b>${esc(x.p.allergies)}</b></span>`))}
     <p class="small muted" style="margin:0">Počty sú za osoby, ktoré neodmietli pozvanie.</p></div>` : ""}
+  ${drinksOut}
   <div class="toolbar"><div class="grp">
     <input class="input" type="search" id="guestQ" data-act="guestQ" placeholder="Hľadať meno, stôl, alergiu…" value="${esc(ui.guestQ)}" aria-label="Hľadať">
     <select class="input" id="guestSide" data-act="guestSide" aria-label="Strana">${opt([["all", "Obe strany"], ["A", "Strana " + nameA()], ["B", "Strana " + nameB()], ["AB", "Spoloční"]], ui.guestSide)}</select>
@@ -464,7 +502,7 @@ function vGuests() {
     ${groups.length ? `<select class="input" id="guestGroup" data-act="guestGroup" aria-label="Skupina">${opt([["all", "Všetky skupiny"], ...groups.map(g => [g, g])], ui.guestGroup)}</select>` : ""}
   </div><span class="small muted">${list.length} ${plural(list.length, "pozvánka", "pozvánky", "pozvánok")} · ${listPersons} ${plural(listPersons, "osoba", "osoby", "osôb")}</span></div>
   ${list.length ? `<div class="tbl-wrap"><table class="grid guests">
-    <thead><tr><th>Meno</th><th>Strana / typ</th><th>Odpoveď</th><th>Menu</th><th>Porcia</th><th>Alergie / diéta</th><th>Ubyt.</th><th>Stôl</th></tr></thead>
+    <thead><tr><th>Meno</th><th>Strana / typ</th><th>Odpoveď</th><th>Menu</th><th>Porcia</th><th>Alergie / diéta</th><th>Alkohol</th><th>Ubyt.</th><th>Stôl</th></tr></thead>
     <tbody>${list.map(g => hhRow(g) + g.people.map((p, i) => pRow(g, p, i)).join("")).join("")}</tbody></table></div>`
   : `<div class="list"><div class="empty">${S.guests.length ? "Nikto nezodpovedá filtru." : "Zoznam hostí je zatiaľ prázdny."}<br>${S.guests.length ? "" : `<button class="btn primary" type="button" data-act="addGuest">Pridať prvú pozvánku</button>`}</div></div>`}`;
 }
@@ -667,6 +705,9 @@ function personCard(p) {
       ${f("Porcia", `<select class="input" data-f="portion">${opt(PORTIONS, p.portion || "cela")}</select>`)}
       ${f("Odpoveď", `<select class="input" data-f="rsvp">${opt(P_RSVP, p.rsvp || "")}</select>`)}
       ${f("Alergie / diéta", `<input class="input" data-f="allergies" value="${esc(p.allergies)}" placeholder="orechy, laktóza…">`, "pf-wide")}
+      <fieldset class="pf-drinks${p.kid ? " is-off" : ""}"><legend>Alkohol</legend>
+        ${[[NO_DRINK, "Nepije"], ...DRINKS.map(d => [d.k, d.label])].map(([k, l]) => `<label class="tick"><input type="checkbox" data-drink="${k}" ${(p.drinks || []).includes(k) ? "checked" : ""}>${esc(l)}</label>`).join("")}
+      </fieldset>
     </div></div>`;
 }
 const peopleField = people => ({
@@ -680,7 +721,8 @@ const peopleField = people => ({
     return { value: cards.map(c => {
       const v = k => c.querySelector(`[data-f="${k}"]`).value.trim();
       const kid = v("kid") === "k";
-      return { id: c.dataset.pid, name: v("name"), kid, age: kid && v("age") !== "" ? Math.max(0, Math.round(num(v("age")))) : "", menu: v("menu"), portion: v("portion"), allergies: v("allergies"), rsvp: v("rsvp") };
+      const drinks = kid ? [] : [...c.querySelectorAll("[data-drink]:checked")].map(x => x.dataset.drink);
+      return { id: c.dataset.pid, name: v("name"), kid, age: kid && v("age") !== "" ? Math.max(0, Math.round(num(v("age")))) : "", menu: v("menu"), portion: v("portion"), allergies: v("allergies"), rsvp: v("rsvp"), drinks };
     }) };
   }
 });
@@ -862,8 +904,8 @@ document.addEventListener("click", ev => {
       card.remove(); break;
     }
     case "guestCsv": {
-      const rows = [["Pozvánka", "Meno", "Dospelý / dieťa", "Vek", "Odpoveď", "Menu", "Porcia", "Alergie / diéta", "Strana", "Skupina", "Stôl", "Preferencie", "Telefón", "E-mail", "Ubytovanie", "Noci", "Odvoz", "Dar", "Poznámka"]];
-      S.guests.slice().sort((a, b) => String(a.name).localeCompare(b.name, "sk")).forEach(g => g.people.forEach((p, i) => rows.push([g.name, personName(g, p, i), p.kid ? "dieťa" : "dospelý", p.kid ? p.age : "", lbl(RSVP, effRsvp(g, p)), lbl(MENU, p.menu || "standard"), lbl(PORTIONS, p.portion || "cela"), p.allergies, sideName(g.side || "AB"), g.group, g.table, g.prefs, g.phone, g.email, g.lodging ? "áno" : "", num(g.nights) || "", g.transport ? "áno" : "", g.gift, g.note])));
+      const rows = [["Pozvánka", "Meno", "Dospelý / dieťa", "Vek", "Odpoveď", "Menu", "Porcia", "Alergie / diéta", "Alkohol", "Strana", "Skupina", "Stôl", "Preferencie", "Telefón", "E-mail", "Ubytovanie", "Noci", "Odvoz", "Dar", "Poznámka"]];
+      S.guests.slice().sort((a, b) => String(a.name).localeCompare(b.name, "sk")).forEach(g => g.people.forEach((p, i) => rows.push([g.name, personName(g, p, i), p.kid ? "dieťa" : "dospelý", p.kid ? p.age : "", lbl(RSVP, effRsvp(g, p)), lbl(MENU, p.menu || "standard"), lbl(PORTIONS, p.portion || "cela"), p.allergies, drinkLabel(p), sideName(g.side || "AB"), g.group, g.table, g.prefs, g.phone, g.email, g.lodging ? "áno" : "", num(g.nights) || "", g.transport ? "áno" : "", g.gift, g.note])));
       download(`hostia-${stamp()}.csv`, csv(rows), "text/csv;charset=utf-8"); break;
     }
     // harmonogram
@@ -910,11 +952,18 @@ document.addEventListener("change", ev => {
   if (d.bud) { const e = S.budget.find(x => x.id === d.bud); if (!e) return; e[d.k] = ["planned", "actual", "paid"].includes(d.k) ? num(el.value) : el.value; if (d.k === "status" && el.value === "zaplatene" && cost(e) > num(e.paid) && confirm("Označiť ako celé zaplatené (Zaplatené = cena)?")) e.paid = cost(e); save(); renderSoon(); return; }
   if (d.guest) { const g = S.guests.find(x => x.id === d.guest); if (!g) return; g[d.k] = el.value; save(); renderSoon(); return; }
   if (d.person) { const g = S.guests.find(x => x.id === d.person); const p = g && g.people.find(x => x.id === d.pid); if (!p) return; p[d.k] = d.k === "allergies" ? el.value.trim() : el.value; save(); renderSoon(); return; }
+  if (d.drink) {
+    // „Nepije“ vylučuje ostatné druhy a naopak
+    if (el.checked) el.closest(".pf-drinks").querySelectorAll("[data-drink]").forEach(x => { if (x !== el && (d.drink === NO_DRINK || x.dataset.drink === NO_DRINK)) x.checked = false; });
+    return;
+  }
+  if (d.act === "drinkRate") { S.settings.drinkRates = { ...(S.settings.drinkRates || {}), [d.k]: el.value === "" ? "" : Math.max(0, num(el.value)) }; save(); renderSoon(); return; }
   if (d.f === "kid") {
     // prepnutie dospelý/dieťa: ukáž vek a ponúkni detské menu a porciu, ak sú ešte predvolené
     const card = el.closest(".person"), kid = el.value === "k";
     const set = (k, from, to) => { const s = card.querySelector(`[data-f="${k}"]`); if (s.value === from) s.value = to; };
     card.querySelector(".pf-age").classList.toggle("is-off", !kid);
+    card.querySelector(".pf-drinks").classList.toggle("is-off", kid);
     if (kid) { set("menu", "standard", "detske"); set("portion", "cela", "polovicna"); } else { set("menu", "detske", "standard"); set("portion", "polovicna", "cela"); }
     return;
   }
