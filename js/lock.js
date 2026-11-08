@@ -89,7 +89,7 @@
     input.value = pin; draw();
     if (pin.length === LEN) check();
   }
-  box.querySelector(".pad").addEventListener("click", e => { const b = e.target.closest("button[data-k]"); if (b) press(b.dataset.k); });
+  box.querySelector(".keypad").addEventListener("click", e => { const b = e.target.closest("button[data-k]"); if (b) press(b.dataset.k); });
   input.addEventListener("input", () => { if (busy) return; pin = input.value.replace(/\D/g, "").slice(0, LEN); input.value = pin; draw(); if (pin.length === LEN) check(); });
   document.addEventListener("keydown", e => {
     if (!document.getElementById("lock") || e.target === input) return;
