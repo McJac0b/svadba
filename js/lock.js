@@ -42,7 +42,7 @@
   box.id = "lock";
   box.innerHTML = `
     <div class="lock-card" role="dialog" aria-modal="true" aria-labelledby="lockTitle">
-      <svg class="lock-rings" viewBox="0 0 64 40" aria-hidden="true"><circle cx="24" cy="20" r="14" fill="none" stroke="#2b7297" stroke-width="3"/><circle cx="40" cy="20" r="14" fill="none" stroke="#5aa5b8" stroke-width="3"/></svg>
+      <svg class="lock-rings" viewBox="0 0 64 40" aria-hidden="true"><circle cx="24" cy="20" r="14" fill="none" stroke="#c4577f" stroke-width="3"/><circle cx="40" cy="20" r="14" fill="none" stroke="#4f8fc0" stroke-width="3"/></svg>
       <h1 id="lockTitle">Svadobný plánovač</h1>
       <p class="lock-sub" id="lockMsg">Zadajte 8-miestny kód</p>
       <div class="dots" id="dots" aria-hidden="true">${"<i></i>".repeat(LEN)}</div>

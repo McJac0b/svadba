@@ -253,6 +253,7 @@ const nameB = () => (S.settings.nameB || "Nevesta").trim();
 const ownerName = o => o === "A" ? `${nameA()} (ženích)` : o === "B" ? `${nameB()} (nevesta)` : "Spolu";
 const ownerShort = o => o === "A" ? nameA() : o === "B" ? nameB() : "Spolu";
 const sideName = s => s === "A" ? nameA() : s === "B" ? nameB() : "Spoloční";
+const whoCls = k => k === "A" ? "groom" : k === "B" ? "bride" : "line"; // ženích modrý, nevesta ružová
 const wDate = () => parseISO(S.settings.date);
 function phaseDue(key) {
   const W = wDate(); const p = PHASES.find(x => x.key === key);
@@ -363,7 +364,7 @@ function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add
 /* ---------- Prehľad ---------- */
 function taskRow(t, opts = {}) {
   const d = effDue(t); const late = isLate(t);
-  const own = t.owner === "A" ? "" : t.owner === "B" ? "rose" : "line";
+  const own = whoCls(t.owner);
   const sub = [t.note, opts.showSection ? sectionName(t.sectionId) : ""].filter(Boolean);
   return `<div class="row ${t.done ? "done" : ""}">
     <label class="check"><input type="checkbox" id="ck-${esc(t.id)}" data-act="toggleTask" data-id="${esc(t.id)}" ${t.done ? "checked" : ""} aria-label="Hotovo: ${esc(t.title)}"></label>
@@ -542,7 +543,7 @@ function vGuests() {
   if (ui.guestRsvp !== "all") list = list.filter(g => g.people.some(p => effRsvp(g, p) === ui.guestRsvp));
   if (ui.guestGroup !== "all") list = list.filter(g => (g.group || "").trim() === ui.guestGroup);
   const coming = allPeople().filter(x => x.r !== "nepride");
-  const count = (pairs, f) => pairs.map(([k, l]) => ({ l, n: coming.filter(x => f(x) === k).length })).filter(x => x.n);
+  const count = (pairs, f) => pairs.map(([k, l]) => ({ k, l, n: coming.filter(x => f(x) === k).length })).filter(x => x.n);
   const menuCounts = count(MENU, x => x.p.menu || "standard");
   const portionCounts = count(PORTIONS, x => x.p.portion || "cela");
   const sideCounts = count([["A", nameA()], ["B", nameB()], ["AB", "Spoloční"]], x => x.g.side || "AB");
@@ -578,7 +579,7 @@ function vGuests() {
     return `<tr class="hh">
       <td class="ro"><button class="btn ghost sm hh-name" type="button" data-act="editGuest" data-id="${esc(g.id)}">${esc(g.name)}</button>
         <span class="hh-sub">${a} ${plural(a, "dospelý", "dospelí", "dospelých")}${k ? ` · ${k} ${plural(k, "dieťa", "deti", "detí")}` : ""}</span></td>
-      <td class="ro"><span class="pill ${g.side === "B" ? "rose" : g.side === "A" ? "" : "line"}">${esc(sideName(g.side || "AB"))}</span>${g.group ? `<span class="hh-sub">${esc(g.group)}</span>` : ""}</td>
+      <td class="ro"><span class="pill ${whoCls(g.side || "AB")}">${esc(sideName(g.side || "AB"))}</span>${g.group ? `<span class="hh-sub">${esc(g.group)}</span>` : ""}</td>
       <td><select class="cell st" id="gr-${esc(g.id)}" data-guest="${esc(g.id)}" data-k="rsvp" aria-label="Odpoveď rodiny ${esc(g.name)}">${opt(RSVP, g.rsvp || "neodoslane")}</select></td>
       <td class="ro small muted" colspan="4" style="white-space:normal">${esc(g.prefs)}</td>
       <td class="ro">${g.lodging ? `<span class="pill sage">${num(g.nights) ? num(g.nights) + " " + plural(num(g.nights), "noc", "noci", "nocí") : "ubyt."}</span>` : ""}${g.transport ? ` <span class="pill line">odvoz</span>` : ""}</td>
@@ -615,7 +616,7 @@ function vGuests() {
   ${coming.length ? `<div class="chip-rows">
     ${chipRow("Menu:", menuCounts.map(x => `<span class="chip">${esc(x.l)} <b>${x.n}</b></span>`))}
     ${chipRow("Porcie:", portionCounts.map(x => `<span class="chip">${esc(x.l)} <b>${x.n}</b></span>`))}
-    ${chipRow("Podľa strany:", sideCounts.map(x => `<span class="chip">${esc(x.l)} <b>${x.n}</b></span>`))}
+    ${chipRow("Podľa strany:", sideCounts.map(x => `<span class="chip ${whoCls(x.k)}">${esc(x.l)} <b>${x.n}</b></span>`))}
     ${chipRow("Alergie:", allergic.map(x => `<span class="chip alg">${esc(personFullName(x.g, x.p, x.i))}: <b>${esc(x.p.allergies)}</b></span>`))}
     <p class="small muted" style="margin:0">Počty sú za osoby, ktoré neodmietli pozvanie.</p></div>` : ""}
   ${drinksOut}
@@ -645,7 +646,7 @@ function vTimeline() {
 }
 function vPreview() {
   const list = sortedTimeline(); const W = wDate();
-  const flourish = `<svg class="flourish" viewBox="0 0 120 14" aria-hidden="true"><path d="M2 7 H48 M72 7 H118" stroke="#b9d0dc" stroke-width="1"/><circle cx="54" cy="7" r="4" fill="none" stroke="#2b7297" stroke-width="1.4"/><circle cx="66" cy="7" r="4" fill="none" stroke="#5aa5b8" stroke-width="1.4"/></svg>`;
+  const flourish = `<svg class="flourish" viewBox="0 0 120 14" aria-hidden="true"><path d="M2 7 H48 M72 7 H118" stroke="#e4c4cf" stroke-width="1"/><circle cx="54" cy="7" r="4" fill="none" stroke="#c4577f" stroke-width="1.4"/><circle cx="66" cy="7" r="4" fill="none" stroke="#4f8fc0" stroke-width="1.4"/></svg>`;
   return `<div class="preview-bar"><a class="btn" href="#harmonogram">← Späť na úpravy</a><button class="btn primary" type="button" data-act="print">Vytlačiť / uložiť ako PDF</button></div>
   <article class="preview">
     <header class="preview-head"><div class="eyebrow">Program svadobného dňa</div>
@@ -667,7 +668,7 @@ function vNotes() {
     <input class="nt" id="nt-${esc(n.id)}" data-note="${esc(n.id)}" data-k="title" value="${esc(n.title)}" placeholder="Názov" aria-label="Názov poznámky">
     <textarea id="nb-${esc(n.id)}" data-note="${esc(n.id)}" data-k="body" placeholder="Text poznámky…" aria-label="Text poznámky">${esc(n.body)}</textarea>
     <div class="nf"><span>Upravené ${esc(when(n.updated))}</span><span style="display:flex;gap:10px;align-items:center">
-      <span class="swatches">${[["", "#f6fbfd"], ["c-rose", "#eaf2fb"], ["c-sage", "#ebf6f2"]].map(([c, bg]) => `<button type="button" data-act="noteColor" data-id="${esc(n.id)}" data-v="${c}" style="background:${bg}" aria-label="Farba"></button>`).join("")}</span>
+      <span class="swatches">${[["", "#fffafb"], ["c-rose", "#fdeef3"], ["c-sage", "#ebf6f2"]].map(([c, bg]) => `<button type="button" data-act="noteColor" data-id="${esc(n.id)}" data-v="${c}" style="background:${bg}" aria-label="Farba"></button>`).join("")}</span>
       <button class="btn sm ghost danger" type="button" data-act="delNote" data-id="${esc(n.id)}">Zmazať</button></span></div>
   </div>`).join("")}</div>` : `<div class="list"><div class="empty">Žiadne poznámky.</div></div>`}`;
 }
