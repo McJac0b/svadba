@@ -219,7 +219,6 @@ table.guests tr.pp td.pn{padding-left:22px}
 table.guests tr.pp td.pn .btn{color:var(--ink);font-weight:600;padding-left:0}
 table.guests tr.pp.out td{opacity:.55}
 table.guests input.cell.alg{color:var(--crit);font-weight:700}
-table.guests select.cell{min-width:150px}
 .modal.wide{max-width:780px}
 .people-h{display:flex;justify-content:space-between;flex-wrap:wrap;gap:2px 12px;font-size:13px;font-weight:700;color:var(--muted);margin-bottom:8px}
 .people-h .small{font-weight:500}
@@ -246,9 +245,12 @@ table.guests select.cell{min-width:150px}
 .sumgrid.inv{margin-bottom:12px}
 .inv-out .grp-btn{color:var(--ink);font-weight:700;padding-left:0}
 .inv-out .grp-btn:hover{color:var(--accent)}
-table.guests tr.grp-h td{background:var(--sea-soft);padding:12px 10px 10px;border-top:2px solid var(--line-strong);font-size:15px}
-table.guests tbody tr.grp-h:first-child td{border-top:0}
-table.guests tr.grp-h + tr.hh td{border-top:0}
+.grp-card{margin-bottom:28px}
+.grp-title{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px;margin-bottom:8px}
+table.guests{table-layout:fixed;min-width:1125px}
+table.guests td.ro{white-space:normal;overflow-wrap:anywhere}
+table.guests select.cell, table.guests input.cell{min-width:0}
+table.guests .hh-sub.inv-n{color:var(--accent);font-weight:600}
 .drinks-out .warn{color:var(--crit)}
 .drinks-out .rate{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:13px}
 .drinks-out .rate input.cell{width:84px;min-width:84px;color:var(--ink)}
