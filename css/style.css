@@ -241,6 +241,14 @@ table.guests select.cell{min-width:150px}
 .pf-drinks label.tick:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
 .pf-drinks input{margin:0;accent-color:var(--accent)}
 .drinks-out{margin-bottom:26px}
+.inv-out{margin-bottom:26px}
+.inv-out .sec-title .small{flex:1 1 300px;text-align:right}
+.sumgrid.inv{margin-bottom:12px}
+.inv-out .grp-btn{color:var(--ink);font-weight:700;padding-left:0}
+.inv-out .grp-btn:hover{color:var(--accent)}
+table.guests tr.grp-h td{background:var(--sea-soft);padding:12px 10px 10px;border-top:2px solid var(--line-strong);font-size:15px}
+table.guests tbody tr.grp-h:first-child td{border-top:0}
+table.guests tr.grp-h + tr.hh td{border-top:0}
 .drinks-out .warn{color:var(--crit)}
 .drinks-out .rate{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:13px}
 .drinks-out .rate input.cell{width:84px;min-width:84px;color:var(--ink)}

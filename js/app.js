@@ -243,7 +243,7 @@ async function startSync(cfg) {
 const ui = {
   sec: "all", taskGroup: "sections", taskFilter: "open", owner: "all",
   budgetView: "table",
-  guestQ: "", guestSide: "all", guestRsvp: "all", guestGroup: "all",
+  guestQ: "", guestSide: "all", guestRsvp: "all", guestGroup: "all", guestView: "groups",
   table: null
 };
 
@@ -268,6 +268,15 @@ const cost = e => num(e.actual) > 0 ? num(e.actual) : num(e.planned);
 const left = e => Math.max(0, cost(e) - num(e.paid));
 const persons = g => g.people.length;
 const effRsvp = (g, p) => p.rsvp || g.rsvp || "neodoslane";
+// Skupina je len štítok na zoskupenie pozvánok (Rodina, Kamaráti…); veľké/malé písmená sa nerozlišujú.
+const NO_GROUP = "__none";
+const groupKey = g => (g.group || "").trim().toLowerCase() || NO_GROUP;
+const isSent = g => !!g.rsvp && g.rsvp !== "neodoslane"; // pozvánka je rozdaná, keď už nie je „neodoslaná“
+function groupList(guests) {
+  const m = new Map();
+  guests.forEach(g => { const k = groupKey(g); if (!m.has(k)) m.set(k, { key: k, name: k === NO_GROUP ? "Bez skupiny" : g.group.trim().charAt(0).toLocaleUpperCase("sk") + g.group.trim().slice(1), guests: [] }); m.get(k).guests.push(g); });
+  return [...m.values()].sort((a, b) => (a.key === NO_GROUP) - (b.key === NO_GROUP) || a.name.localeCompare(b.name, "sk"));
+}
 const allPeople = () => S.guests.flatMap(g => g.people.map((p, i) => ({ g, p, i, r: effRsvp(g, p) })));
 // Bezmenná osoba: „Dospelý 2“ / „Dieťa 1“ (číslované zvlášť), s názvom rodiny tam, kde chýba kontext.
 const personName = (g, p, i) => p.name || (g.people.length === 1 ? g.name : `${p.kid ? "Dieťa" : "Dospelý"} ${g.people.slice(0, i + 1).filter(x => x.kid === p.kid).length}`);
@@ -295,9 +304,10 @@ function stats() {
     A: by("A"), B: by("B"), AB: by("AB"),
     budget, est, paid, rest,
     invited: ppl.length, yes: n(x => x.r === "pride"), no: n(x => x.r === "nepride"),
-    wait: n(x => x.r === "pozvany" || x.r === "mozno"), notSent: n(x => x.r === "neodoslane"),
+    wait: n(x => x.r === "pozvany" || x.r === "mozno"),
     kids: coming.filter(x => x.p.kid).length, adults: coming.filter(x => !x.p.kid).length,
-    lodging: coming.filter(x => x.g.lodging).length, transport: coming.filter(x => x.g.transport).length
+    lodging: coming.filter(x => x.g.lodging).length, transport: coming.filter(x => x.g.transport).length,
+    invTotal: S.guests.length, invSent: S.guests.filter(isSent).length
   };
 }
 
@@ -395,7 +405,7 @@ function vOverview() {
     <div class="card pad stat"><div class="k">Hostia</div>
       <div class="v">${s.yes}<small> / ${s.invited - s.no}</small></div><div class="s">potvrdených osôb${s.kids ? ` · ${s.kids} ${plural(s.kids, "dieťa", "deti", "detí")}` : ""}</div>
       <div class="bar"><i class="sage" style="width:${pct(s.yes, s.invited - s.no)}%"></i></div>
-      <div class="foot2">${s.wait ? `<span class="pill">Čaká na odpoveď ${s.wait}</span>` : ""}${s.notSent ? `<span class="pill line">Neodoslané ${s.notSent}</span>` : ""}${!S.guests.length ? `<a class="btn sm" href="#hostia">Pridať hostí</a>` : ""}</div></div>
+      <div class="foot2">${s.wait ? `<span class="pill">Čaká na odpoveď ${s.wait}</span>` : ""}${s.invTotal ? `<span class="pill ${s.invSent === s.invTotal ? "sage" : "line"}">Rozdané pozvánky ${s.invSent}/${s.invTotal}</span>` : ""}${!S.guests.length ? `<a class="btn sm" href="#hostia">Pridať hostí</a>` : ""}</div></div>
   </section>
   <section class="cols">
     <div><div class="sec-title"><h2>Čo je na rade</h2><a href="#checklist" class="small">Celý checklist →</a></div>
@@ -535,13 +545,13 @@ function vBudget() {
 /* ---------- Hostia ---------- */
 function vGuests() {
   const s = stats();
-  const groups = [...new Set(S.guests.map(g => (g.group || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "sk"));
+  const groups = groupList(S.guests);
   const q = ui.guestQ.trim().toLowerCase();
   let list = S.guests.slice().sort((a, b) => String(a.name).localeCompare(b.name, "sk"));
   if (q) list = list.filter(g => [g.name, g.group, g.prefs, g.note, g.table, g.phone, ...g.people.map(p => `${p.name} ${p.allergies}`)].join(" ").toLowerCase().includes(q));
   if (ui.guestSide !== "all") list = list.filter(g => (g.side || "AB") === ui.guestSide);
   if (ui.guestRsvp !== "all") list = list.filter(g => g.people.some(p => effRsvp(g, p) === ui.guestRsvp));
-  if (ui.guestGroup !== "all") list = list.filter(g => (g.group || "").trim() === ui.guestGroup);
+  if (ui.guestGroup !== "all") list = list.filter(g => groupKey(g) === ui.guestGroup);
   const coming = allPeople().filter(x => x.r !== "nepride");
   const count = (pairs, f) => pairs.map(([k, l]) => ({ k, l, n: coming.filter(x => f(x) === k).length })).filter(x => x.n);
   const menuCounts = count(MENU, x => x.p.menu || "standard");
@@ -573,6 +583,25 @@ function vGuests() {
         <td class="ro">${qtyText(d)}</td></tr>`).join("")}</tbody></table></div>
     <p class="small muted drinks-hint">Ráta sa s dospelými, ktorí neodmietli pozvanie. Spotreba na osobu platí pre hosťa, ktorý pije len tento druh; kto si vybral viac druhov, jeho spotreba sa medzi ne rozdelí. Odhad je zaokrúhlený nahor, rezervu si pripočítajte.${unknown ? ` ${unknown} ${plural(unknown, "dospelý nemá", "dospelí nemajú", "dospelých nemá")} alkohol vyplnený, v odhade nie ${plural(unknown, "je", "sú", "sú")}.` : ""}</p>
   </section>` : "";
+  const invRows = groups.map(x => ({ ...x, inv: x.guests.length, sent: x.guests.filter(isSent).length,
+    ppl: x.guests.reduce((a, g) => a + persons(g), 0), yes: x.guests.reduce((a, g) => a + g.people.filter(p => effRsvp(g, p) === "pride").length, 0) }));
+  const invOut = S.guests.length ? `<section class="inv-out">
+    <div class="sec-title"><h3>Pozvánky</h3><span class="small muted">Rodina dostane spravidla jednu pozvánku, kamaráti každý svoju. Pozvánka je rozdaná, keď jej odpoveď už nie je „Pozvánka neodoslaná“.</span></div>
+    <div class="sumgrid inv">
+      <div><div class="k">Pozvánok spolu</div><div class="v">${s.invTotal}</div></div>
+      <div><div class="k">Rozdané</div><div class="v sage">${s.invSent}</div></div>
+      <div><div class="k">Zostáva rozdať</div><div class="v ${s.invTotal - s.invSent ? "crit" : ""}">${s.invTotal - s.invSent}</div></div>
+    </div>
+    <div class="tbl-wrap"><table class="grid">
+      <thead><tr><th>Skupina</th><th class="r">Pozvánky</th><th class="r">Rozdané</th><th class="r">Zostáva rozdať</th><th class="r">Osoby</th><th class="r">Príde</th></tr></thead>
+      <tbody>${invRows.map(x => `<tr><td class="ro"><button class="btn ghost sm grp-btn" type="button" data-act="pickGroup" data-v="${esc(x.key)}" title="Zobraziť len túto skupinu">${esc(x.name)}</button></td>
+        <td class="ro r num">${x.inv}</td><td class="ro r num">${x.sent}</td><td class="ro r num ${x.inv - x.sent ? "neg" : ""}">${x.inv - x.sent || "–"}</td><td class="ro r num">${x.ppl}</td><td class="ro r num">${x.yes}</td></tr>`).join("")}</tbody>
+      <tfoot><tr><td>Spolu</td><td class="r num">${s.invTotal}</td><td class="r num">${s.invSent}</td><td class="r num">${s.invTotal - s.invSent}</td><td class="r num">${s.invited}</td><td class="r num">${s.yes}</td></tr></tfoot>
+    </table></div>
+  </section>` : "";
+  const grpHead = x => { const sent = x.guests.filter(isSent).length, n = x.guests.length, pp = x.guests.reduce((a, g) => a + persons(g), 0);
+    return `<tr class="grp-h"><td colspan="9"><b>${esc(x.name)}</b> <span class="small muted">· ${n} ${plural(n, "pozvánka", "pozvánky", "pozvánok")} · rozdané ${sent} · ${pp} ${plural(pp, "osoba", "osoby", "osôb")}</span></td></tr>`; };
+  const hhBlock = g => hhRow(g) + g.people.map((p, i) => pRow(g, p, i)).join("");
   const chipRow = (label, items) => items.length ? `<div class="chips"><span class="small muted chips-l">${label}</span>${items.join("")}</div>` : "";
   const hhRow = g => {
     const k = g.people.filter(p => p.kid).length, a = g.people.length - k;
@@ -619,16 +648,18 @@ function vGuests() {
     ${chipRow("Podľa strany:", sideCounts.map(x => `<span class="chip ${whoCls(x.k)}">${esc(x.l)} <b>${x.n}</b></span>`))}
     ${chipRow("Alergie:", allergic.map(x => `<span class="chip alg">${esc(personFullName(x.g, x.p, x.i))}: <b>${esc(x.p.allergies)}</b></span>`))}
     <p class="small muted" style="margin:0">Počty sú za osoby, ktoré neodmietli pozvanie.</p></div>` : ""}
+  ${invOut}
   ${drinksOut}
   <div class="toolbar"><div class="grp">
     <input class="input" type="search" id="guestQ" data-act="guestQ" placeholder="Hľadať meno, stôl, alergiu…" value="${esc(ui.guestQ)}" aria-label="Hľadať">
     <select class="input" id="guestSide" data-act="guestSide" aria-label="Strana">${opt([["all", "Obe strany"], ["A", "Strana " + nameA()], ["B", "Strana " + nameB()], ["AB", "Spoloční"]], ui.guestSide)}</select>
     <select class="input" id="guestRsvp" data-act="guestRsvp" aria-label="Odpoveď">${opt([["all", "Každá odpoveď"], ...RSVP], ui.guestRsvp)}</select>
-    ${groups.length ? `<select class="input" id="guestGroup" data-act="guestGroup" aria-label="Skupina">${opt([["all", "Všetky skupiny"], ...groups.map(g => [g, g])], ui.guestGroup)}</select>` : ""}
+    ${groups.length > 1 ? `<select class="input" id="guestGroup" data-act="guestGroup" aria-label="Skupina">${opt([["all", "Všetky skupiny"], ...groups.map(x => [x.key, x.name])], ui.guestGroup)}</select>` : ""}
+    <div class="seg" role="group" aria-label="Zoradenie">${[["groups", "Podľa skupín"], ["abc", "Abecedne"]].map(([k, l]) => `<button type="button" data-act="guestView" data-v="${k}" aria-pressed="${ui.guestView === k}">${l}</button>`).join("")}</div>
   </div><span class="small muted">${list.length} ${plural(list.length, "pozvánka", "pozvánky", "pozvánok")} · ${listPersons} ${plural(listPersons, "osoba", "osoby", "osôb")}</span></div>
   ${list.length ? `<div class="tbl-wrap"><table class="grid guests">
     <thead><tr><th>Meno</th><th>Strana / typ</th><th>Odpoveď</th><th>Menu</th><th>Porcia</th><th>Alergie / diéta</th><th>Alkohol</th><th>Ubyt.</th><th>Stôl</th></tr></thead>
-    <tbody>${list.map(g => hhRow(g) + g.people.map((p, i) => pRow(g, p, i)).join("")).join("")}</tbody></table></div>`
+    <tbody>${ui.guestView === "groups" ? groupList(list).map(x => grpHead(x) + x.guests.map(hhBlock).join("")).join("") : list.map(hhBlock).join("")}</tbody></table></div>`
   : `<div class="list"><div class="empty">${S.guests.length ? "Nikto nezodpovedá filtru." : "Zoznam hostí je zatiaľ prázdny."}<br>${S.guests.length ? "" : `<button class="btn primary" type="button" data-act="addGuest">Pridať prvú pozvánku</button>`}</div></div>`}`;
 }
 
@@ -1019,6 +1050,8 @@ document.addEventListener("click", ev => {
     // hostia
     case "addGuest": guestForm(null); break;
     case "editGuest": guestForm(S.guests.find(g => g.id === id)); break;
+    case "guestView": ui.guestView = el.dataset.v; render(); break;
+    case "pickGroup": ui.guestGroup = el.dataset.v; render(); { const t = document.querySelector("table.guests"); if (t) t.scrollIntoView({ block: "start" }); } break;
     case "addPerson": {
       const ed = $("peopleEd"); ed.insertAdjacentHTML("beforeend", personCard(newPerson(el.dataset.kid === "1")));
       $("ferr").textContent = ""; ed.lastElementChild.querySelector('[data-f="name"]').focus(); break;
